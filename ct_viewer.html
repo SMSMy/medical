@@ -1,0 +1,1641 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CT Scan Viewer - عارض الأشعة المقطعية</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --primary: #667eea;
+        --primary-dark: #5a67d8;
+        --secondary: #11998e;
+        --dark-bg: #1a1a2e;
+        --darker-bg: #16213e;
+        --card-bg: rgba(255, 255, 255, 0.08);
+        --text-light: #ffffff;
+        --text-muted: #adb5bd;
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Tajawal", sans-serif;
+        background: linear-gradient(
+          135deg,
+          var(--dark-bg) 0%,
+          var(--darker-bg) 100%
+        );
+        color: var(--text-light);
+        min-height: 100vh;
+        line-height: 1.6;
+      }
+
+      .header {
+        background: linear-gradient(135deg, var(--primary) 0%, #764ba2 100%);
+        padding: 2rem 1rem;
+        text-align: center;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+      }
+
+      .header h1 {
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
+      }
+
+      .header p {
+        opacity: 0.9;
+        font-size: 1rem;
+      }
+
+      .alert-box {
+        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        margin: 1rem;
+        padding: 1.5rem;
+        border-radius: 15px;
+        text-align: center;
+        font-size: 1.1rem;
+        box-shadow: 0 4px 15px rgba(17, 153, 142, 0.3);
+      }
+
+      .alert-box .icon {
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
+      }
+
+      .regions-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 1.5rem;
+        padding: 1.5rem;
+        max-width: 1400px;
+        margin: 0 auto;
+      }
+
+      .region-card {
+        background: var(--card-bg);
+        border-radius: 20px;
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        transition: transform 0.3s, box-shadow 0.3s;
+        cursor: pointer;
+      }
+
+      .region-card:hover {
+        transform: translateY(-10px);
+        box-shadow: 0 20px 40px rgba(102, 126, 234, 0.3);
+      }
+
+      .region-card .preview {
+        width: 100%;
+        height: 250px;
+        background: #000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        position: relative;
+      }
+
+      .region-card .preview img {
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+      }
+
+      .region-card .overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(102, 126, 234, 0.8);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        transition: opacity 0.3s;
+      }
+
+      .region-card:hover .overlay {
+        opacity: 1;
+      }
+
+      .overlay .icon {
+        font-size: 3rem;
+        margin-bottom: 0.5rem;
+      }
+
+      .overlay .text {
+        font-size: 1.1rem;
+        text-align: center;
+        padding: 0 1rem;
+      }
+
+      .region-card .info {
+        padding: 1.5rem;
+        background: linear-gradient(135deg, var(--primary) 0%, #764ba2 100%);
+      }
+
+      .region-card .info h3 {
+        font-size: 1.3rem;
+        margin-bottom: 0.5rem;
+      }
+
+      .region-card .info .count {
+        opacity: 0.9;
+        font-size: 1rem;
+      }
+
+      /* Modal Viewer */
+      .modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.98);
+        z-index: 2000;
+        flex-direction: column;
+      }
+
+      .modal.active {
+        display: flex;
+      }
+
+      .modal-header {
+        background: var(--darker-bg);
+        padding: 1rem 1.5rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      }
+
+      .modal-header h2 {
+        font-size: 1.3rem;
+        color: #38ef7d;
+      }
+
+      .modal-close {
+        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        border: none;
+        color: white;
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        font-size: 1.5rem;
+        cursor: pointer;
+        transition: transform 0.3s;
+      }
+
+      .modal-close:hover {
+        transform: scale(1.1);
+      }
+
+      .modal-body {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        position: relative;
+      }
+
+      .modal-body img {
+        max-width: 90%;
+        max-height: 80vh;
+        object-fit: contain;
+      }
+
+      .modal-instructions {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(102, 126, 234, 0.95);
+        padding: 2rem 3rem;
+        border-radius: 20px;
+        text-align: center;
+        z-index: 10;
+        animation: fadeIn 0.5s;
+      }
+
+      .modal-instructions.hidden {
+        display: none;
+      }
+
+      .modal-instructions .icon {
+        font-size: 4rem;
+        margin-bottom: 1rem;
+      }
+
+      .modal-instructions h3 {
+        font-size: 1.5rem;
+        margin-bottom: 1rem;
+      }
+
+      .modal-instructions p {
+        font-size: 1.1rem;
+        opacity: 0.9;
+      }
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translate(-50%, -50%) scale(0.9);
+        }
+        to {
+          opacity: 1;
+          transform: translate(-50%, -50%) scale(1);
+        }
+      }
+
+      .modal-footer {
+        background: var(--darker-bg);
+        padding: 1.5rem;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+      }
+
+      .slider-container {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 1rem;
+      }
+
+      .slider-container input[type="range"] {
+        flex: 1;
+        height: 10px;
+        border-radius: 5px;
+        background: rgba(255, 255, 255, 0.2);
+        appearance: none;
+        cursor: pointer;
+      }
+
+      .slider-container input[type="range"]::-webkit-slider-thumb {
+        appearance: none;
+        width: 25px;
+        height: 25px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--secondary) 0%, #38ef7d 100%);
+        cursor: pointer;
+        box-shadow: 0 2px 10px rgba(17, 153, 142, 0.5);
+      }
+
+      .slice-info {
+        text-align: center;
+        font-size: 1.2rem;
+        font-weight: 500;
+      }
+
+      .slice-info .current {
+        color: #38ef7d;
+        font-size: 2rem;
+        font-weight: 700;
+      }
+
+      .nav-buttons {
+        display: flex;
+        justify-content: center;
+        gap: 1rem;
+        margin-top: 1rem;
+      }
+
+      .nav-btn {
+        background: linear-gradient(135deg, var(--primary) 0%, #764ba2 100%);
+        border: none;
+        color: white;
+        padding: 0.8rem 2rem;
+        border-radius: 25px;
+        font-size: 1rem;
+        font-family: "Tajawal", sans-serif;
+        cursor: pointer;
+        transition: transform 0.3s;
+      }
+
+      .nav-btn:hover {
+        transform: scale(1.05);
+      }
+
+      .back-link {
+        display: block;
+        text-align: center;
+        padding: 1.5rem;
+        color: var(--text-muted);
+        text-decoration: none;
+        font-size: 1rem;
+      }
+
+      .back-link:hover {
+        color: var(--text-light);
+      }
+
+      @media (max-width: 768px) {
+        .header h1 {
+          font-size: 1.5rem;
+        }
+        .regions-grid {
+          grid-template-columns: 1fr;
+        }
+        .modal-instructions {
+          padding: 1.5rem;
+        }
+        .modal-instructions .icon {
+          font-size: 3rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="header">
+      <h1>🔬 عارض الأشعة المقطعية التفاعلي</h1>
+      <p>CT Scan Interactive Viewer</p>
+    </header>
+
+    <div class="alert-box">
+      <div class="icon">👆</div>
+      <div>
+        اضغط على أي منطقة لبدء استعراض الطبقات • استخدم التمرير للأعلى والأسفل
+        للتنقل بين الصور
+      </div>
+    </div>
+
+    <div class="regions-grid" id="regionsGrid"></div>
+
+    <a href="index.html" class="back-link">← العودة إلى العارض الكامل</a>
+
+    <!-- Modal Viewer -->
+    <div class="modal" id="viewerModal">
+      <div class="modal-header">
+        <h2 id="modalTitle">الرأس</h2>
+        <button class="modal-close" onclick="closeModal()">✕</button>
+      </div>
+      <div class="modal-body" id="modalBody">
+        <div class="modal-instructions" id="modalInstructions">
+          <div class="icon">🖱️</div>
+          <h3>تعليمات الاستخدام</h3>
+          <p>🔼 مرر للأعلى للطبقة السابقة</p>
+          <p>🔽 مرر للأسفل للطبقة التالية</p>
+          <p>اضغط في أي مكان للبدء</p>
+        </div>
+        <img id="sliceImage" src="" alt="CT Slice" />
+      </div>
+      <div class="modal-footer">
+        <div class="slider-container">
+          <span>1</span>
+          <input
+            type="range"
+            id="sliceSlider"
+            min="0"
+            value="0"
+            oninput="goToSlice(this.value)"
+          />
+          <span id="maxSlice">100</span>
+        </div>
+        <div class="slice-info">
+          الطبقة <span class="current" id="currentSlice">1</span> من
+          <span id="totalSlices">100</span>
+        </div>
+        <div class="nav-buttons">
+          <button class="nav-btn" onclick="prevSlice()">◀ السابقة</button>
+          <button class="nav-btn" onclick="nextSlice()">التالية ▶</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // Region data with images
+      const regions = {
+        HEAD: {
+          name: "الرأس",
+          nameEn: "HEAD",
+          icon: "🧠",
+          folder: "HEAD",
+          images: [
+            "AAAAAA_6.png",
+            "AAAAAA_7.png",
+            "AAAAAA_8.png",
+            "AAAAAA_9.png",
+            "AAAAAA0_.png",
+            "AAAAAA00.png",
+            "AAAAAA01.png",
+            "AAAAAA02.png",
+            "AAAAAA03.png",
+            "AAAAAA04.png",
+            "AAAAAA05.png",
+            "AAAAAA06.png",
+            "AAAAAA07.png",
+            "AAAAAA08.png",
+            "AAAAAA09.png",
+            "AAAAAA0A.png",
+            "AAAAAA0B.png",
+            "AAAAAA0C.png",
+            "AAAAAA0D.png",
+            "AAAAAA0E.png",
+            "AAAAAA0F.png",
+            "AAAAAA0G.png",
+            "AAAAAA0H.png",
+            "AAAAAA0I.png",
+            "AAAAAA0J.png",
+            "AAAAAA0K.png",
+            "AAAAAA0L.png",
+            "AAAAAA0M.png",
+            "AAAAAA0N.png",
+            "AAAAAA0O.png",
+            "AAAAAA0P.png",
+            "AAAAAA0Q.png",
+            "AAAAAA0R.png",
+            "AAAAAA0S.png",
+            "AAAAAA0T.png",
+            "AAAAAA0U.png",
+            "AAAAAA0V.png",
+            "AAAAAA0W.png",
+            "AAAAAA0X.png",
+            "AAAAAA0Y.png",
+            "AAAAAA0Z.png",
+            "AAAAAA1_.png",
+            "AAAAAA10.png",
+            "AAAAAA11.png",
+            "AAAAAA12.png",
+            "AAAAAA13.png",
+            "AAAAAA14.png",
+            "AAAAAA15.png",
+            "AAAAAA16.png",
+            "AAAAAA17.png",
+            "AAAAAA18.png",
+            "AAAAAA19.png",
+            "AAAAAA1A.png",
+            "AAAAAA1B.png",
+            "AAAAAA1C.png",
+            "AAAAAA1D.png",
+            "AAAAAA1E.png",
+            "AAAAAA1F.png",
+            "AAAAAA1G.png",
+            "AAAAAA1H.png",
+            "AAAAAA1I.png",
+            "AAAAAA1J.png",
+            "AAAAAA1K.png",
+            "AAAAAA1L.png",
+            "AAAAAA1M.png",
+            "AAAAAA1N.png",
+            "AAAAAA1O.png",
+            "AAAAAA1P.png",
+            "AAAAAA1Q.png",
+            "AAAAAA1R.png",
+            "AAAAAA1S.png",
+            "AAAAAA1T.png",
+            "AAAAAA1U.png",
+            "AAAAAA1V.png",
+            "AAAAAA1W.png",
+            "AAAAAA1X.png",
+            "AAAAAA1Y.png",
+            "AAAAAA1Z.png",
+            "AAAAAA2_.png",
+            "AAAAAA20.png",
+            "AAAAAA21.png",
+            "AAAAAA22.png",
+            "AAAAAA23.png",
+            "AAAAAA24.png",
+            "AAAAAA25.png",
+            "AAAAAA26.png",
+            "AAAAAA27.png",
+            "AAAAAA28.png",
+            "AAAAAA29.png",
+            "AAAAAA2A.png",
+            "AAAAAA2B.png",
+            "AAAAAA2C.png",
+            "AAAAAA2D.png",
+            "AAAAAA2E.png",
+            "AAAAAA2F.png",
+            "AAAAAA2G.png",
+            "AAAAAA2H.png",
+            "AAAAAA2I.png",
+            "AAAAAA2J.png",
+            "AAAAAA2K.png",
+            "AAAAAA2L.png",
+            "AAAAAA2M.png",
+            "AAAAAA2N.png",
+            "AAAAAA2O.png",
+            "AAAAAA2P.png",
+            "AAAAAA2Q.png",
+            "AAAAAA2R.png",
+            "AAAAAA2S.png",
+            "AAAAAA2T.png",
+            "AAAAAA2U.png",
+            "AAAAAA2V.png",
+            "AAAAAA2W.png",
+            "AAAAAA2X.png",
+            "AAAAAA2Y.png",
+            "AAAAAA2Z.png",
+            "AAAAAA3_.png",
+            "AAAAAA30.png",
+            "AAAAAA31.png",
+            "AAAAAA32.png",
+            "AAAAAA33.png",
+            "AAAAAA34.png",
+            "AAAAAA35.png",
+            "AAAAAA36.png",
+            "AAAAAA37.png",
+            "AAAAAA38.png",
+            "AAAAAA39.png",
+            "AAAAAA3A.png",
+            "AAAAAA3B.png",
+            "AAAAAA3C.png",
+            "AAAAAA3D.png",
+            "AAAAAA3E.png",
+            "AAAAAA3F.png",
+            "AAAAAA3G.png",
+            "AAAAAA3H.png",
+            "AAAAAA3I.png",
+            "AAAAAA3J.png",
+            "AAAAAA3K.png",
+            "AAAAAA3L.png",
+            "AAAAAA3M.png",
+            "AAAAAA3N.png",
+            "AAAAAA3O.png",
+            "AAAAAA3P.png",
+            "AAAAAA3Q.png",
+            "AAAAAA3R.png",
+            "AAAAAA3S.png",
+            "AAAAAA3T.png",
+            "AAAAAA3U.png",
+            "AAAAAA3V.png",
+            "AAAAAA3W.png",
+            "AAAAAA3X.png",
+            "AAAAAA3Y.png",
+            "AAAAAA3Z.png",
+            "AAAAAA4_.png",
+            "AAAAAA40.png",
+            "AAAAAA41.png",
+            "AAAAAA42.png",
+            "AAAAAA43.png",
+            "AAAAAA44.png",
+            "AAAAAA45.png",
+            "AAAAAA46.png",
+            "AAAAAA47.png",
+            "AAAAAA48.png",
+            "AAAAAA49.png",
+            "AAAAAA4A.png",
+            "AAAAAA4B.png",
+            "AAAAAA4C.png",
+            "AAAAAA4D.png",
+            "AAAAAA4E.png",
+            "AAAAAA4F.png",
+            "AAAAAA4G.png",
+            "AAAAAA4H.png",
+            "AAAAAA4I.png",
+            "AAAAAA4J.png",
+            "AAAAAA4K.png",
+            "AAAAAA4L.png",
+            "AAAAAA4M.png",
+            "AAAAAA4N.png",
+            "AAAAAA4O.png",
+            "AAAAAA4P.png",
+            "AAAAAA4Q.png",
+            "AAAAAA4R.png",
+            "AAAAAA4S.png",
+            "AAAAAA4T.png",
+            "AAAAAA4U.png",
+            "AAAAAA4V.png",
+            "AAAAAA4W.png",
+            "AAAAAA4X.png",
+            "AAAAAA4Y.png",
+            "AAAAAA4Z.png",
+            "AAAAAA5_.png",
+            "AAAAAA50.png",
+            "AAAAAA51.png",
+            "AAAAAA52.png",
+            "AAAAAA53.png",
+            "AAAAAA54.png",
+            "AAAAAA55.png",
+            "AAAAAA56.png",
+            "AAAAAA57.png",
+            "AAAAAA58.png",
+            "AAAAAA59.png",
+            "AAAAAA5A.png",
+            "AAAAAA5B.png",
+            "AAAAAA5C.png",
+            "AAAAAA5D.png",
+            "AAAAAA5E.png",
+            "AAAAAA5F.png",
+            "AAAAAA5G.png",
+            "AAAAAA5H.png",
+            "AAAAAA5I.png",
+            "AAAAAA5J.png",
+            "AAAAAA5K.png",
+            "AAAAAA5L.png",
+            "AAAAAA5M.png",
+            "AAAAAA5N.png",
+            "AAAAAA5O.png",
+            "AAAAAA5P.png",
+            "AAAAAA5Q.png",
+            "AAAAAA5R.png",
+            "AAAAAA5S.png",
+            "AAAAAA5T.png",
+            "AAAAAA5U.png",
+            "AAAAAA5V.png",
+            "AAAAAA5W.png",
+            "AAAAAA5X.png",
+            "AAAAAA5Y.png",
+            "AAAAAA5Z.png",
+            "AAAAAA6_.png",
+            "AAAAAA60.png",
+            "AAAAAA61.png",
+            "AAAAAA62.png",
+            "AAAAAA63.png",
+            "AAAAAA64.png",
+            "AAAAAA65.png",
+            "AAAAAA66.png",
+            "AAAAAA67.png",
+            "AAAAAA68.png",
+            "AAAAAA69.png",
+            "AAAAAA6A.png",
+            "AAAAAA6B.png",
+            "AAAAAA6C.png",
+            "AAAAAA6D.png",
+            "AAAAAA6E.png",
+            "AAAAAA6F.png",
+            "AAAAAA6G.png",
+            "AAAAAA6H.png",
+            "AAAAAA6I.png",
+            "AAAAAA6J.png",
+            "AAAAAA6K.png",
+            "AAAAAA6L.png",
+            "AAAAAA6M.png",
+            "AAAAAA6N.png",
+            "AAAAAA6O.png",
+            "AAAAAA6P.png",
+            "AAAAAA6Q.png",
+            "AAAAAA6R.png",
+            "AAAAAA6S.png",
+            "AAAAAA6T.png",
+            "AAAAAA6U.png",
+            "AAAAAA6V.png",
+            "AAAAAA6W.png",
+            "AAAAAA6X.png",
+            "AAAAAA6Y.png",
+            "AAAAAA6Z.png",
+            "AAAAAA7_.png",
+            "AAAAAA70.png",
+            "AAAAAA71.png",
+            "AAAAAA72.png",
+            "AAAAAA73.png",
+            "AAAAAA74.png",
+            "AAAAAA75.png",
+            "AAAAAA76.png",
+            "AAAAAA77.png",
+            "AAAAAA78.png",
+            "AAAAAA79.png",
+            "AAAAAA7A.png",
+            "AAAAAA7B.png",
+            "AAAAAA7C.png",
+            "AAAAAA7D.png",
+            "AAAAAA7E.png",
+            "AAAAAA7F.png",
+            "AAAAAA7G.png",
+            "AAAAAA7H.png",
+            "AAAAAA7I.png",
+            "AAAAAA7J.png",
+            "AAAAAA7K.png",
+            "AAAAAA7L.png",
+            "AAAAAA7M.png",
+            "AAAAAA7N.png",
+            "AAAAAA7O.png",
+            "AAAAAA7P.png",
+            "AAAAAA7Q.png",
+            "AAAAAA7R.png",
+            "AAAAAA7S.png",
+            "AAAAAA7T.png",
+            "AAAAAA7U.png",
+            "AAAAAA7V.png",
+            "AAAAAA7W.png",
+            "AAAAAA7X.png",
+            "AAAAAA7Y.png",
+            "AAAAAA7Z.png",
+            "AAAAAA8_.png",
+            "AAAAAA80.png",
+            "AAAAAA81.png",
+            "AAAAAA82.png",
+            "AAAAAA83.png",
+            "AAAAAA84.png",
+            "AAAAAA85.png",
+            "AAAAAA86.png",
+            "AAAAAA87.png",
+            "AAAAAA88.png",
+            "AAAAAA89.png",
+            "AAAAAA8A.png",
+            "AAAAAA8B.png",
+            "AAAAAA8C.png",
+            "AAAAAA8D.png",
+            "AAAAAA8E.png",
+            "AAAAAA8F.png",
+            "AAAAAA8G.png",
+            "AAAAAA8H.png",
+            "AAAAAA8I.png",
+            "AAAAAA8J.png",
+            "AAAAAA8K.png",
+            "AAAAAA8L.png",
+            "AAAAAA8M.png",
+            "AAAAAA8N.png",
+            "AAAAAA8O.png",
+            "AAAAAA8P.png",
+            "AAAAAA8Q.png",
+            "AAAAAA8R.png",
+            "AAAAAA8S.png",
+            "AAAAAA8T.png",
+            "AAAAAA8U.png",
+            "AAAAAA8V.png",
+            "AAAAAA8W.png",
+            "AAAAAA8X.png",
+            "AAAAAA8Y.png",
+            "AAAAAA8Z.png",
+            "AAAAAA9_.png",
+            "AAAAAA90.png",
+            "AAAAAA91.png",
+            "AAAAAA92.png",
+            "AAAAAA93.png",
+            "AAAAAA94.png",
+            "AAAAAA95.png",
+            "AAAAAA96.png",
+            "AAAAAA97.png",
+            "AAAAAA98.png",
+            "AAAAAA99.png",
+            "AAAAAA9A.png",
+            "AAAAAA9B.png",
+            "AAAAAA9C.png",
+            "AAAAAA9D.png",
+            "AAAAAA9E.png",
+            "AAAAAA9F.png",
+            "AAAAAA9G.png",
+            "AAAAAA9H.png",
+            "AAAAAA9I.png",
+            "AAAAAA9J.png",
+            "AAAAAA9K.png",
+            "AAAAAA9L.png",
+            "AAAAAA9M.png",
+            "AAAAAA9N.png",
+            "AAAAAA9O.png",
+            "AAAAAA9P.png",
+            "AAAAAA9Q.png",
+            "AAAAAA9R.png",
+            "AAAAAA9S.png",
+            "AAAAAA9T.png",
+            "AAAAAA9U.png",
+            "AAAAAA9V.png",
+            "AAAAAA9W.png",
+            "AAAAAA9X.png",
+            "AAAAAA9Y.png",
+            "AAAAAA9Z.png",
+            "AAAAAAA_.png",
+            "AAAAAAA0.png",
+            "AAAAAAA1.png",
+            "AAAAAAA2.png",
+            "AAAAAAA3.png",
+            "AAAAAAA4.png",
+            "AAAAAAA5.png",
+            "AAAAAAA6.png",
+            "AAAAAAA7.png",
+            "AAAAAAA8.png",
+            "AAAAAAA9.png",
+            "AAAAAAAD.png",
+            "AAAAAAAE.png",
+            "AAAAAAAF.png",
+            "AAAAAAAG.png",
+            "AAAAAAAH.png",
+            "AAAAAAAI.png",
+            "AAAAAAAJ.png",
+            "AAAAAAAK.png",
+            "AAAAAAAL.png",
+            "AAAAAAAM.png",
+            "AAAAAAAN.png",
+            "AAAAAAAO.png",
+            "AAAAAAAP.png",
+            "AAAAAAAQ.png",
+            "AAAAAAAR.png",
+            "AAAAAAAS.png",
+            "AAAAAAAT.png",
+            "AAAAAAAU.png",
+            "AAAAAAAV.png",
+            "AAAAAAAW.png",
+            "AAAAAAAX.png",
+            "AAAAAAAY.png",
+            "AAAAAAAZ.png",
+            "AAAAAAB_.png",
+            "AAAAAAB0.png",
+            "AAAAAAB1.png",
+            "AAAAAAB2.png",
+            "AAAAAAB3.png",
+            "AAAAAAB4.png",
+            "AAAAAAB5.png",
+            "AAAAAAB6.png",
+            "AAAAAAB7.png",
+            "AAAAAAB8.png",
+            "AAAAAAB9.png",
+            "AAAAAABA.png",
+            "AAAAAABB.png",
+            "AAAAAABC.png",
+            "AAAAAABD.png",
+            "AAAAAABE.png",
+            "AAAAAABF.png",
+            "AAAAAABG.png",
+            "AAAAAABH.png",
+            "AAAAAABI.png",
+            "AAAAAABJ.png",
+            "AAAAAABK.png",
+            "AAAAAABL.png",
+            "AAAAAABM.png",
+            "AAAAAABN.png",
+            "AAAAAABO.png",
+            "AAAAAABP.png",
+            "AAAAAABQ.png",
+            "AAAAAABR.png",
+            "AAAAAABS.png",
+            "AAAAAABT.png",
+            "AAAAAABU.png",
+            "AAAAAABV.png",
+            "AAAAAABW.png",
+            "AAAAAABX.png",
+            "AAAAAABY.png",
+            "AAAAAABZ.png",
+            "AAAAAAC_.png",
+            "AAAAAAC0.png",
+            "AAAAAAC1.png",
+            "AAAAAAC2.png",
+            "AAAAAAC3.png",
+            "AAAAAAC4.png",
+            "AAAAAAC5.png",
+            "AAAAAAC6.png",
+            "AAAAAAC7.png",
+            "AAAAAAC8.png",
+            "AAAAAAC9.png",
+            "AAAAAACA.png",
+            "AAAAAACB.png",
+            "AAAAAACC.png",
+            "AAAAAACD.png",
+            "AAAAAACE.png",
+            "AAAAAACF.png",
+            "AAAAAACG.png",
+            "AAAAAACH.png",
+            "AAAAAACI.png",
+            "AAAAAACJ.png",
+            "AAAAAACK.png",
+            "AAAAAACL.png",
+            "AAAAAACM.png",
+            "AAAAAACN.png",
+            "AAAAAACO.png",
+            "AAAAAACP.png",
+            "AAAAAACQ.png",
+            "AAAAAACR.png",
+            "AAAAAACS.png",
+            "AAAAAACT.png",
+            "AAAAAACU.png",
+            "AAAAAACV.png",
+            "AAAAAACW.png",
+            "AAAAAACX.png",
+            "AAAAAACY.png",
+            "AAAAAACZ.png",
+            "AAAAAAD_.png",
+            "AAAAAAD0.png",
+            "AAAAAAD1.png",
+            "AAAAAAD2.png",
+            "AAAAAAD3.png",
+            "AAAAAAD4.png",
+            "AAAAAAD5.png",
+            "AAAAAAD6.png",
+            "AAAAAAD7.png",
+            "AAAAAAD8.png",
+            "AAAAAAD9.png",
+            "AAAAAADA.png",
+            "AAAAAADB.png",
+            "AAAAAADC.png",
+            "AAAAAADD.png",
+            "AAAAAADE.png",
+            "AAAAAADF.png",
+            "AAAAAADG.png",
+            "AAAAAADH.png",
+            "AAAAAADI.png",
+            "AAAAAADJ.png",
+            "AAAAAADK.png",
+            "AAAAAADL.png",
+            "AAAAAADM.png",
+            "AAAAAADN.png",
+            "AAAAAADO.png",
+            "AAAAAADP.png",
+            "AAAAAADQ.png",
+            "AAAAAADR.png",
+            "AAAAAADS.png",
+            "AAAAAADT.png",
+            "AAAAAADU.png",
+            "AAAAAADV.png",
+            "AAAAAADW.png",
+            "AAAAAADX.png",
+            "AAAAAADY.png",
+            "AAAAAADZ.png",
+            "AAAAAAE_.png",
+            "AAAAAAE0.png",
+            "AAAAAAE1.png",
+            "AAAAAAE2.png",
+            "AAAAAAE3.png",
+            "AAAAAAE4.png",
+            "AAAAAAE5.png",
+            "AAAAAAE6.png",
+            "AAAAAAE7.png",
+            "AAAAAAE8.png",
+            "AAAAAAE9.png",
+            "AAAAAAEA.png",
+            "AAAAAAEB.png",
+            "AAAAAAEC.png",
+            "AAAAAAED.png",
+            "AAAAAAEE.png",
+            "AAAAAAEF.png",
+            "AAAAAAEG.png",
+            "AAAAAAEH.png",
+            "AAAAAAEI.png",
+            "AAAAAAEJ.png",
+            "AAAAAAEK.png",
+            "AAAAAAEL.png",
+            "AAAAAAEM.png",
+            "AAAAAAEN.png",
+            "AAAAAAEO.png",
+            "AAAAAAEP.png",
+            "AAAAAAEQ.png",
+            "AAAAAAER.png",
+            "AAAAAAES.png",
+            "AAAAAAET.png",
+            "AAAAAAEU.png",
+            "AAAAAAEV.png",
+            "AAAAAAEW.png",
+            "AAAAAAEX.png",
+            "AAAAAAEY.png",
+            "AAAAAAEZ.png",
+            "AAAAAAF_.png",
+            "AAAAAAF0.png",
+            "AAAAAAF1.png",
+            "AAAAAAF2.png",
+            "AAAAAAF3.png",
+            "AAAAAAF4.png",
+            "AAAAAAF5.png",
+            "AAAAAAF6.png",
+            "AAAAAAF7.png",
+            "AAAAAAF8.png",
+            "AAAAAAF9.png",
+            "AAAAAAFA.png",
+            "AAAAAAFB.png",
+            "AAAAAAFC.png",
+            "AAAAAAFD.png",
+            "AAAAAAFE.png",
+            "AAAAAAFF.png",
+            "AAAAAAFG.png",
+            "AAAAAAFH.png",
+            "AAAAAAFI.png",
+            "AAAAAAFJ.png",
+            "AAAAAAFK.png",
+            "AAAAAAFL.png",
+            "AAAAAAFM.png",
+            "AAAAAAFN.png",
+            "AAAAAAFO.png",
+            "AAAAAAFP.png",
+            "AAAAAAFQ.png",
+            "AAAAAAFR.png",
+            "AAAAAAFS.png",
+            "AAAAAAFT.png",
+            "AAAAAAFU.png",
+            "AAAAAAFV.png",
+            "AAAAAAFW.png",
+            "AAAAAAFX.png",
+            "AAAAAAFY.png",
+            "AAAAAAFZ.png",
+            "AAAAAAG_.png",
+            "AAAAAAG0.png",
+            "AAAAAAG1.png",
+            "AAAAAAG2.png",
+            "AAAAAAG3.png",
+            "AAAAAAG4.png",
+            "AAAAAAG5.png",
+            "AAAAAAG6.png",
+            "AAAAAAG7.png",
+            "AAAAAAG8.png",
+            "AAAAAAG9.png",
+            "AAAAAAGA.png",
+            "AAAAAAGB.png",
+            "AAAAAAGC.png",
+            "AAAAAAGD.png",
+            "AAAAAAGE.png",
+            "AAAAAAGF.png",
+            "AAAAAAGG.png",
+            "AAAAAAGH.png",
+            "AAAAAAGI.png",
+            "AAAAAAGJ.png",
+            "AAAAAAGK.png",
+            "AAAAAAGL.png",
+            "AAAAAAGM.png",
+            "AAAAAAGN.png",
+            "AAAAAAGO.png",
+            "AAAAAAGP.png",
+            "AAAAAAGQ.png",
+            "AAAAAAGR.png",
+            "AAAAAAGS.png",
+            "AAAAAAGT.png",
+            "AAAAAAGU.png",
+            "AAAAAAGV.png",
+            "AAAAAAGW.png",
+            "AAAAAAGX.png",
+            "AAAAAAGY.png",
+            "AAAAAAGZ.png",
+            "AAAAAAH_.png",
+            "AAAAAAH0.png",
+            "AAAAAAH1.png",
+            "AAAAAAH2.png",
+            "AAAAAAH3.png",
+            "AAAAAAH4.png",
+            "AAAAAAH5.png",
+            "AAAAAAH6.png",
+            "AAAAAAH7.png",
+            "AAAAAAH8.png",
+            "AAAAAAH9.png",
+            "AAAAAAHA.png",
+            "AAAAAAHB.png",
+            "AAAAAAHC.png",
+            "AAAAAAHD.png",
+            "AAAAAAHE.png",
+            "AAAAAAHF.png",
+            "AAAAAAHG.png",
+            "AAAAAAHH.png",
+            "AAAAAAHI.png",
+            "AAAAAAHJ.png",
+            "AAAAAAHK.png",
+            "AAAAAAHL.png",
+            "AAAAAAHM.png",
+            "AAAAAAHN.png",
+            "AAAAAAHO.png",
+            "AAAAAAHP.png",
+            "AAAAAAHQ.png",
+            "AAAAAAHR.png",
+            "AAAAAAHS.png",
+            "AAAAAAHT.png",
+            "AAAAAAHU.png",
+            "AAAAAAHV.png",
+            "AAAAAAHW.png",
+            "AAAAAAHX.png",
+            "AAAAAAHY.png",
+            "AAAAAAHZ.png",
+            "AAAAAAIA.png",
+            "AAAAAAIB.png",
+            "AAAAAAIC.png",
+            "AAAAAAID.png",
+            "AAAAAAIE.png",
+            "AAAAAAIF.png",
+            "AAAAAAIG.png",
+            "AAAAAAIH.png",
+            "AAAAAAII.png",
+            "AAAAAAIJ.png",
+            "AAAAABA_.png",
+            "AAAAABA0.png",
+            "AAAAABA1.png",
+            "AAAAABA2.png",
+            "AAAAABA3.png",
+            "AAAAABA4.png",
+            "AAAAABA5.png",
+            "AAAAABA6.png",
+            "AAAAABA7.png",
+            "AAAAABA8.png",
+            "AAAAABA9.png",
+            "AAAAABAA.png",
+            "AAAAABAB.png",
+            "AAAAABAC.png",
+            "AAAAABAD.png",
+            "AAAAABAE.png",
+            "AAAAABAF.png",
+            "AAAAABAG.png",
+            "AAAAABAH.png",
+            "AAAAABAI.png",
+            "AAAAABAJ.png",
+            "AAAAABAK.png",
+            "AAAAABAL.png",
+            "AAAAABAM.png",
+            "AAAAABAN.png",
+            "AAAAABAO.png",
+            "AAAAABAP.png",
+            "AAAAABAQ.png",
+            "AAAAABAR.png",
+            "AAAAABAS.png",
+            "AAAAABAT.png",
+            "AAAAABAU.png",
+            "AAAAABAV.png",
+            "AAAAABAW.png",
+            "AAAAABAX.png",
+            "AAAAABAY.png",
+            "AAAAABAZ.png",
+            "AAAAABB_.png",
+            "AAAAABB0.png",
+            "AAAAABB1.png",
+            "AAAAABB2.png",
+            "AAAAABB3.png",
+            "AAAAABB4.png",
+            "AAAAABB5.png",
+            "AAAAABB6.png",
+            "AAAAABB7.png",
+            "AAAAABB8.png",
+            "AAAAABB9.png",
+            "AAAAABBA.png",
+            "AAAAABBB.png",
+            "AAAAABBC.png",
+            "AAAAABBD.png",
+            "AAAAABBE.png",
+            "AAAAABBF.png",
+            "AAAAABBG.png",
+            "AAAAABBH.png",
+            "AAAAABBI.png",
+            "AAAAABBJ.png",
+            "AAAAABBK.png",
+            "AAAAABBL.png",
+            "AAAAABBM.png",
+            "AAAAABBN.png",
+            "AAAAABBO.png",
+            "AAAAABBP.png",
+            "AAAAABBQ.png",
+            "AAAAABBR.png",
+            "AAAAABBS.png",
+            "AAAAABBT.png",
+            "AAAAABBU.png",
+            "AAAAABBV.png",
+            "AAAAABBW.png",
+            "AAAAABBX.png",
+            "AAAAABBY.png",
+            "AAAAABBZ.png",
+            "AAAAABC_.png",
+            "AAAAABC0.png",
+            "AAAAABC1.png",
+            "AAAAABC2.png",
+            "AAAAABC3.png",
+            "AAAAABC4.png",
+            "AAAAABC5.png",
+            "AAAAABC6.png",
+            "AAAAABC7.png",
+            "AAAAABC8.png",
+            "AAAAABC9.png",
+            "AAAAABCA.png",
+            "AAAAABCB.png",
+            "AAAAABCC.png",
+            "AAAAABCD.png",
+            "AAAAABCE.png",
+            "AAAAABCF.png",
+            "AAAAABCG.png",
+            "AAAAABCH.png",
+            "AAAAABCI.png",
+            "AAAAABCJ.png",
+            "AAAAABCK.png",
+            "AAAAABCL.png",
+            "AAAAABCM.png",
+            "AAAAABCN.png",
+            "AAAAABCO.png",
+            "AAAAABCP.png",
+            "AAAAABCQ.png",
+            "AAAAABCR.png",
+            "AAAAABCS.png",
+            "AAAAABCT.png",
+            "AAAAABCU.png",
+            "AAAAABCV.png",
+            "AAAAABCW.png",
+            "AAAAABCX.png",
+            "AAAAABCY.png",
+            "AAAAABCZ.png",
+            "AAAAABDA.png",
+            "AAAAABDB.png",
+            "AAAAABDC.png",
+            "AAAAABDD.png",
+            "AAAAABDE.png",
+            "AAAAABDF.png",
+            "AAAAABDG.png",
+            "AAAAABDH.png",
+            "AAAAABDI.png",
+            "AAAAABDJ.png",
+          ],
+        },
+        CHEST: {
+          name: "الصدر",
+          nameEn: "CHEST",
+          icon: "🫁",
+          folder: "CHEST",
+          images: [
+            "AAAAAAAB.png",
+            "AAAAAAQ_.png",
+            "AAAAAAQ0.png",
+            "AAAAAAQ1.png",
+            "AAAAAAQ2.png",
+            "AAAAAAQ3.png",
+            "AAAAAAQ4.png",
+            "AAAAAAQ5.png",
+            "AAAAAAQ6.png",
+            "AAAAAAQ7.png",
+            "AAAAAAQ8.png",
+            "AAAAAAQ9.png",
+            "AAAAAAQP.png",
+            "AAAAAAQQ.png",
+            "AAAAAAQR.png",
+            "AAAAAAQS.png",
+            "AAAAAAQT.png",
+            "AAAAAAQU.png",
+            "AAAAAAQV.png",
+            "AAAAAAQW.png",
+            "AAAAAAQX.png",
+            "AAAAAAQY.png",
+            "AAAAAAQZ.png",
+            "AAAAAAR_.png",
+            "AAAAAAR0.png",
+            "AAAAAAR1.png",
+            "AAAAAAR2.png",
+            "AAAAAAR3.png",
+            "AAAAAAR4.png",
+            "AAAAAAR5.png",
+            "AAAAAAR6.png",
+            "AAAAAAR7.png",
+            "AAAAAAR8.png",
+            "AAAAAAR9.png",
+            "AAAAAARA.png",
+            "AAAAAARB.png",
+            "AAAAAARC.png",
+            "AAAAAARD.png",
+            "AAAAAARE.png",
+            "AAAAAARF.png",
+            "AAAAAARG.png",
+            "AAAAAARH.png",
+            "AAAAAARI.png",
+            "AAAAAARJ.png",
+            "AAAAAARK.png",
+            "AAAAAARL.png",
+            "AAAAAARM.png",
+            "AAAAAARN.png",
+            "AAAAAARO.png",
+            "AAAAAARP.png",
+          ],
+        },
+        ABDOMEN: {
+          name: "البطن",
+          nameEn: "ABDOMEN",
+          icon: "🫃",
+          folder: "ABDOMEN",
+          images: [
+            "AAAAAA__.png",
+            "AAAAAA_0.png",
+            "AAAAAA_1.png",
+            "AAAAAA_2.png",
+            "AAAAAA_3.png",
+            "AAAAAA_4.png",
+            "AAAAAA_5.png",
+            "AAAAAA_A.png",
+            "AAAAAA_B.png",
+            "AAAAAA_C.png",
+            "AAAAAA_D.png",
+            "AAAAAA_E.png",
+            "AAAAAA_F.png",
+            "AAAAAA_G.png",
+            "AAAAAA_H.png",
+            "AAAAAA_I.png",
+            "AAAAAA_J.png",
+            "AAAAAA_K.png",
+            "AAAAAA_L.png",
+            "AAAAAA_M.png",
+            "AAAAAA_N.png",
+            "AAAAAA_O.png",
+            "AAAAAA_P.png",
+            "AAAAAA_Q.png",
+            "AAAAAA_R.png",
+            "AAAAAA_S.png",
+            "AAAAAA_T.png",
+            "AAAAAA_U.png",
+            "AAAAAA_V.png",
+            "AAAAAA_W.png",
+            "AAAAAA_X.png",
+            "AAAAAA_Y.png",
+            "AAAAAA_Z.png",
+            "AAAAAAIK.png",
+            "AAAAAAU_.png",
+            "AAAAAAU0.png",
+            "AAAAAAU1.png",
+            "AAAAAAU2.png",
+            "AAAAAAU3.png",
+            "AAAAAAU4.png",
+            "AAAAAAU5.png",
+            "AAAAAAU6.png",
+            "AAAAAAU7.png",
+            "AAAAAAU8.png",
+            "AAAAAAU9.png",
+            "AAAAAAUH.png",
+            "AAAAAAUI.png",
+            "AAAAAAUJ.png",
+            "AAAAAAUK.png",
+            "AAAAAAUL.png",
+          ],
+        },
+        NECK: {
+          name: "الرقبة",
+          nameEn: "NECK",
+          icon: "🦴",
+          folder: "NECK",
+          images: [
+            "AAAAAAI_.png",
+            "AAAAAAI0.png",
+            "AAAAAAI1.png",
+            "AAAAAAI2.png",
+            "AAAAAAI3.png",
+            "AAAAAAI4.png",
+            "AAAAAAI5.png",
+            "AAAAAAI6.png",
+            "AAAAAAI7.png",
+            "AAAAAAI8.png",
+            "AAAAAAI9.png",
+            "AAAAAAIL.png",
+            "AAAAAAIM.png",
+            "AAAAAAIN.png",
+            "AAAAAAIO.png",
+            "AAAAAAIP.png",
+            "AAAAAAIQ.png",
+            "AAAAAAIR.png",
+            "AAAAAAIS.png",
+            "AAAAAAIT.png",
+            "AAAAAAIU.png",
+            "AAAAAAIV.png",
+            "AAAAAAIW.png",
+            "AAAAAAIX.png",
+            "AAAAAAIY.png",
+            "AAAAAAIZ.png",
+            "AAAAAAJ_.png",
+            "AAAAAAJ0.png",
+            "AAAAAAJ1.png",
+            "AAAAAAJ2.png",
+            "AAAAAAJ3.png",
+            "AAAAAAJ4.png",
+            "AAAAAAJ5.png",
+            "AAAAAAJ6.png",
+            "AAAAAAJ7.png",
+            "AAAAAAJ8.png",
+            "AAAAAAJ9.png",
+            "AAAAAAJA.png",
+            "AAAAAAJB.png",
+            "AAAAAAJC.png",
+            "AAAAAAJD.png",
+            "AAAAAAJE.png",
+            "AAAAAAJF.png",
+            "AAAAAAJG.png",
+            "AAAAAAJH.png",
+            "AAAAAAJI.png",
+            "AAAAAAJJ.png",
+            "AAAAAAJK.png",
+            "AAAAAAJL.png",
+            "AAAAAAJM.png",
+          ],
+        },
+        SPINE: {
+          name: "العمود الفقري",
+          nameEn: "SPINE",
+          icon: "🦴",
+          folder: "SPINE",
+          images: [
+            "AAAAACC_.png",
+            "AAAAACC0.png",
+            "AAAAACC1.png",
+            "AAAAACC2.png",
+            "AAAAACC3.png",
+            "AAAAACC4.png",
+            "AAAAACC5.png",
+            "AAAAACC6.png",
+            "AAAAACC7.png",
+            "AAAAACC8.png",
+            "AAAAACC9.png",
+            "AAAAACCE.png",
+            "AAAAACCF.png",
+            "AAAAACCG.png",
+            "AAAAACCH.png",
+            "AAAAACCI.png",
+            "AAAAACCJ.png",
+            "AAAAACCK.png",
+            "AAAAACCL.png",
+            "AAAAACCM.png",
+            "AAAAACCN.png",
+            "AAAAACCO.png",
+            "AAAAACCP.png",
+            "AAAAACCQ.png",
+            "AAAAACCR.png",
+            "AAAAACCS.png",
+            "AAAAACCT.png",
+            "AAAAACCU.png",
+            "AAAAACCV.png",
+            "AAAAACCW.png",
+            "AAAAACCX.png",
+            "AAAAACCY.png",
+            "AAAAACCZ.png",
+            "AAAAACD_.png",
+            "AAAAACD0.png",
+            "AAAAACD1.png",
+            "AAAAACD2.png",
+            "AAAAACD3.png",
+            "AAAAACD4.png",
+            "AAAAACD5.png",
+            "AAAAACD6.png",
+            "AAAAACD7.png",
+            "AAAAACD8.png",
+            "AAAAACD9.png",
+            "AAAAACDA.png",
+            "AAAAACDB.png",
+            "AAAAACDC.png",
+            "AAAAACDD.png",
+            "AAAAACDE.png",
+            "AAAAACDF.png",
+          ],
+        },
+        PELVIS: {
+          name: "الحوض",
+          nameEn: "PELVIS",
+          icon: "🦴",
+          folder: "PELVIS",
+          images: ["AAAAAAAC.png"],
+        },
+        EXTREMITY: {
+          name: "الأطراف",
+          nameEn: "EXTREMITY",
+          icon: "🦵",
+          folder: "EXTREMITY",
+          images: [
+            "AAAAACA_.png",
+            "AAAAACA0.png",
+            "AAAAACAX.png",
+            "AAAAACAY.png",
+            "AAAAACCA.png",
+            "AAAAACCB.png",
+            "AAAAACCC.png",
+          ],
+        },
+        TIBIA: {
+          name: "قصبة الساق",
+          nameEn: "TIBIA",
+          icon: "🦴",
+          folder: "TIBIA",
+          images: ["AAAAACA2.png", "AAAAACA3.png"],
+        },
+      };
+
+      // Current state
+      let currentRegion = null;
+      let currentIndex = 0;
+      let instructionsShown = true;
+
+      // Build the regions grid
+      function buildRegionsGrid() {
+        const grid = document.getElementById("regionsGrid");
+        grid.innerHTML = "";
+
+        for (const [key, region] of Object.entries(regions)) {
+          const card = document.createElement("div");
+          card.className = "region-card";
+          card.onclick = () => openViewer(key);
+
+          const previewImg =
+            region.folder +
+            "/" +
+            region.images[Math.floor(region.images.length / 2)];
+
+          card.innerHTML = `
+                    <div class="preview">
+                        <img src="${previewImg}" alt="${region.name}" onerror="this.src='${region.folder}/${region.images[0]}'">
+                        <div class="overlay">
+                            <div class="icon">👆</div>
+                            <div class="text">اضغط لبدء الاستعراض<br>تصفح ${region.images.length} طبقة</div>
+                        </div>
+                    </div>
+                    <div class="info">
+                        <h3>${region.icon} ${region.name}</h3>
+                        <div class="count">${region.images.length} صورة / طبقة</div>
+                    </div>
+                `;
+
+          grid.appendChild(card);
+        }
+      }
+
+      // Open viewer for a region
+      function openViewer(regionKey) {
+        currentRegion = regions[regionKey];
+        currentIndex = 0;
+        instructionsShown = true;
+
+        document.getElementById("modalTitle").textContent =
+          currentRegion.icon + " " + currentRegion.name;
+        document.getElementById("sliceSlider").max =
+          currentRegion.images.length - 1;
+        document.getElementById("maxSlice").textContent =
+          currentRegion.images.length;
+        document.getElementById("totalSlices").textContent =
+          currentRegion.images.length;
+        document.getElementById("modalInstructions").classList.remove("hidden");
+
+        updateImage();
+        document.getElementById("viewerModal").classList.add("active");
+        document.body.style.overflow = "hidden";
+      }
+
+      // Close modal
+      function closeModal() {
+        document.getElementById("viewerModal").classList.remove("active");
+        document.body.style.overflow = "";
+        currentRegion = null;
+      }
+
+      // Update displayed image
+      function updateImage() {
+        if (!currentRegion) return;
+
+        const imgSrc =
+          currentRegion.folder + "/" + currentRegion.images[currentIndex];
+        document.getElementById("sliceImage").src = imgSrc;
+        document.getElementById("currentSlice").textContent = currentIndex + 1;
+        document.getElementById("sliceSlider").value = currentIndex;
+      }
+
+      // Navigation functions
+      function nextSlice() {
+        if (currentIndex < currentRegion.images.length - 1) {
+          currentIndex++;
+          updateImage();
+        }
+      }
+
+      function prevSlice() {
+        if (currentIndex > 0) {
+          currentIndex--;
+          updateImage();
+        }
+      }
+
+      function goToSlice(index) {
+        currentIndex = parseInt(index);
+        updateImage();
+      }
+
+      // Hide instructions on click
+      document
+        .getElementById("modalBody")
+        .addEventListener("click", function () {
+          if (instructionsShown) {
+            document
+              .getElementById("modalInstructions")
+              .classList.add("hidden");
+            instructionsShown = false;
+          }
+        });
+
+      // Scroll wheel navigation
+      document.getElementById("modalBody").addEventListener(
+        "wheel",
+        function (e) {
+          e.preventDefault();
+          if (instructionsShown) {
+            document
+              .getElementById("modalInstructions")
+              .classList.add("hidden");
+            instructionsShown = false;
+          }
+
+          if (e.deltaY > 0) {
+            nextSlice();
+          } else {
+            prevSlice();
+          }
+        },
+        { passive: false }
+      );
+
+      // Keyboard navigation
+      document.addEventListener("keydown", function (e) {
+        if (!currentRegion) return;
+
+        if (e.key === "Escape") {
+          closeModal();
+        } else if (e.key === "ArrowDown" || e.key === "ArrowRight") {
+          nextSlice();
+        } else if (e.key === "ArrowUp" || e.key === "ArrowLeft") {
+          prevSlice();
+        } else if (e.key === "Home") {
+          currentIndex = 0;
+          updateImage();
+        } else if (e.key === "End") {
+          currentIndex = currentRegion.images.length - 1;
+          updateImage();
+        }
+      });
+
+      // Initialize
+      buildRegionsGrid();
+    </script>
+  </body>
+</html>
