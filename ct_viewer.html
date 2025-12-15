@@ -444,12 +444,32 @@
           regions = data;
           buildRegionsGrid();
           document.getElementById("loading").style.display = "none";
+
+          // Check for hash in URL to open specific region
+          if (window.location.hash) {
+            const regionKey = window.location.hash.substring(1);
+            if (regions[regionKey]) {
+              openViewer(regionKey);
+            }
+          }
         } catch (error) {
           console.error("Error loading regions:", error);
           document.getElementById("loading").innerHTML =
             '<div style="color: #dc3545;">خطأ في تحميل البيانات</div>';
         }
       }
+
+      // Handle hash changes
+      window.addEventListener("hashchange", function () {
+        if (window.location.hash) {
+          const regionKey = window.location.hash.substring(1);
+          if (regions[regionKey]) {
+            openViewer(regionKey);
+          }
+        } else {
+          closeModal();
+        }
+      });
 
       function buildRegionsGrid() {
         const grid = document.getElementById("regionsGrid");
@@ -471,7 +491,9 @@
           const region = regions[key];
           const card = document.createElement("div");
           card.className = "region-card";
-          card.onclick = () => openViewer(key);
+          card.onclick = () => {
+            window.location.hash = key;
+          };
 
           const midIndex = Math.floor(region.images.length / 2);
           const previewImg = key + "/" + region.images[midIndex];
@@ -519,6 +541,12 @@
         document.getElementById("viewerModal").classList.remove("active");
         document.body.style.overflow = "";
         currentRegion = null;
+        // removing hash without scrolling
+        history.pushState(
+          "",
+          document.title,
+          window.location.pathname + window.location.search
+        );
       }
 
       function updateImage() {
